@@ -4342,7 +4342,7 @@ function initMap() {
             attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
         }
     );
-    state.streetBaseLayer.addTo(state.map);
+    selecionarMapaBase('street');
 
 }
 
@@ -5714,9 +5714,7 @@ window.onload = async function () {
     await carregarRecursosTerceiros();
     await atualizarDatasBases();
     desenharCamadaSBS();
-    state.selectedThirdPartyIds = new Set(
-        recursosTerceirosData.map(recurso => String(recurso.id))
-    );
+    state.selectedThirdPartyIds.clear();
     await geocodificarCidadesTerceiros();
     desenharCamadaTerceiros();
     atualizarIndicadorTerceiros();
