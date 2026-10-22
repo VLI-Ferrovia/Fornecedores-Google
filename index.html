@@ -2792,9 +2792,27 @@ function resolverLocalizacaoSB(sbInformada, km) {
         const nome = normalizarIdentificador(bloco.nome);
         return partesSB.every(parte => nome.includes(parte));
     }) : [];
+    const termoSB = partesSB.length === 1 ? partesSB[0] : '';
+    const separacoesSBComposta = [];
+    for (let indice = 3; indice <= termoSB.length - 3; indice++) {
+        separacoesSBComposta.push([
+            termoSB.slice(0, indice),
+            termoSB.slice(indice)
+        ]);
+    }
+    const candidatosCompostos = !candidatosParciais.length && separacoesSBComposta.length
+        ? blocosData.filter(bloco => {
+            const nome = normalizarIdentificador(bloco.nome);
+            return separacoesSBComposta.some(partes =>
+                partes.every(parte => nome.includes(parte))
+            );
+        })
+        : [];
     const candidatosSB = candidatosExatos.length
         ? candidatosExatos
-        : candidatosParciais;
+        : candidatosParciais.length
+            ? candidatosParciais
+            : candidatosCompostos;
     const sbEncontrada = candidatosSB.length > 0;
     const candidatos = candidatosSB;
     const candidatosValidos = candidatos.filter(bloco =>
@@ -2831,6 +2849,12 @@ function resolverLocalizacaoSB(sbInformada, km) {
     const melhor = avaliados[0];
     const bloco = melhor.bloco;
     const kmProjetado = melhor.kmProjetado;
+    const kmLimiteMinimo = Math.min(bloco.km_in, bloco.km_out);
+    const kmLimiteMaximo = Math.max(bloco.km_in, bloco.km_out);
+    const formatarKM = valor => Number(valor).toLocaleString('pt-BR', {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3
+    });
     const aproximado = !sbEncontrada ||
         melhor.distanciaKM > 0 ||
         avaliados.some(item =>
@@ -2853,7 +2877,11 @@ function resolverLocalizacaoSB(sbInformada, km) {
     }
 
     if (melhor.distanciaKM > 0) {
-        avisos.push(`KM ${Number(km).toFixed(3)} fora do intervalo; projetado no ponto mais próximo`);
+        avisos.push(
+            `KM ${formatarKM(km)} fora dos limites da SB ${bloco.nome} ` +
+            `(KM ${formatarKM(kmLimiteMinimo)} a ${formatarKM(kmLimiteMaximo)}); ` +
+            `localização aproximada no limite mais próximo: KM ${formatarKM(kmProjetado)}`
+        );
     }
     else if (aproximado && avisos.length === 0) {
         avisos.push(`SB ${sbInformada} ambígua; selecionado o segmento mais próximo`);
@@ -5144,6 +5172,9 @@ async function executarBuscaGlobal() {
 
     recolherPainelBusca();
     processarResultadosNoMapaEListas();
+    if (localizacao.erro) {
+        showToast(localizacao.erro);
+    }
 
 }
 
@@ -5162,6 +5193,12 @@ function processarResultadosNoMapaEListas() {
         state.currentSearch;
     const latVisual = loc.mapLat ?? loc.lat;
     const lonVisual = loc.mapLon ?? loc.lon;
+    const kmForaDoIntervalo = Number.isFinite(loc.kmProjetado) &&
+        loc.km !== loc.kmProjetado;
+    const limitesKM = kmForaDoIntervalo
+        ? `<br><strong>Limites da SB:</strong> KM ${Math.min(loc.bloco.km_in, loc.bloco.km_out).toFixed(3)} a ${Math.max(loc.bloco.km_in, loc.bloco.km_out).toFixed(3)}
+                <br><strong>KM localizado (aproximado):</strong> ${loc.kmProjetado.toFixed(3)}`
+        : '';
 
     desenharCamadaRecursos();
 
@@ -5212,7 +5249,7 @@ function processarResultadosNoMapaEListas() {
         .bindPopup(`
             <div class="popup-custom">
                 <strong>Trecho:</strong> ${escapeHtml(loc.bloco.nome)}<br>
-                <strong>KM:</strong> ${loc.km.toFixed(3)}
+                <strong>KM informado:</strong> ${loc.km.toFixed(3)}${limitesKM}
                 <hr style="margin: 5px 0; border: 0.5px solid #ccc;">
                 <strong><i class="fas fa-map-marker-alt" style="color: #dc2626;"></i> Coordenada:</strong>
                 ${htmlBotaoCopiarCoordenada(`${latVisual.toFixed(5)}, ${lonVisual.toFixed(5)}`)}<br>
